@@ -17,7 +17,6 @@ describe Resque::Plugins::ConcurrentRestriction do
   end
 
   context "settings" do
-
     it "should allow setting/getting global config for lock_timeout" do
       Resque::Plugins::ConcurrentRestriction.lock_timeout.should == 60
       Resque::Plugins::ConcurrentRestriction.configure do |config|
@@ -37,7 +36,24 @@ describe Resque::Plugins::ConcurrentRestriction do
       Resque::Plugins::ConcurrentRestriction.restricted_before_queued = false
       Resque::Plugins::ConcurrentRestriction.restricted_before_queued.should == false
     end
+  end
 
+  context "concurrent_limit" do
+    it "should default to 1" do
+      DefaultConcurrentRestrictionJob.concurrent_limit.should == 1
+    end
+
+    it "should accept an integer concurrent configuration" do
+      RestrictionJob.concurrent_limit.should == 1
+    end
+
+    it "should accept a Proc concurrent configuration" do
+      # Build up a tracking key.  'arg_type_one' and 'arg_type_two' are hypothetical values returned from an
+      # implementation of the :concurrent_identifier method.  These are the values that will be passed as arguments
+      # to the proc call (the proc is the :concurrent value for DynamicRestrictionJob).
+      DynamicRestrictionJob.concurrent_limit('concurrent.tracking.DynamicRestrictionJob.arg_type_one').should == 6
+      DynamicRestrictionJob.concurrent_limit('concurrent.tracking.DynamicRestrictionJob.arg_type_two').should == 4
+    end
   end
 
   context "keys" do

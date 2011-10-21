@@ -75,8 +75,16 @@ module Resque
       end
 
       # Used to query what the limit the user has set
-      def concurrent_limit
-        @concurrent ||= 1
+      def concurrent_limit(tracking_key=nil)
+        if @concurrent.nil?
+          1
+        elsif @concurrent.respond_to?(:call)
+          concurrent_id = tracking_key.nil? ? nil : tracking_key.split('.')[3..-1].join('.')
+
+          @concurrent.call(concurrent_id)
+        else
+          @concurrent
+        end
       end
 
       # The key used to acquire a lock so we can operate on multiple
@@ -214,7 +222,7 @@ module Resque
       def set_running_count(tracking_key, value)
         count_key = running_count_key(tracking_key)
         Resque.redis.set(count_key, value)
-        restricted = (value > concurrent_limit)
+        restricted = (value > concurrent_limit(tracking_key))
         mark_runnable(tracking_key, !restricted)
         return restricted
       end
@@ -222,14 +230,14 @@ module Resque
       def restricted?(tracking_key)
         count_key = running_count_key(tracking_key)
         value = Resque.redis.get(count_key).to_i
-        restricted = (value >= concurrent_limit)
+        restricted = (value >= concurrent_limit(tracking_key))
         return restricted
       end
 
       def increment_running_count(tracking_key)
         count_key = running_count_key(tracking_key)
         value = Resque.redis.incr(count_key)
-        restricted = (value > concurrent_limit)
+        restricted = (value > concurrent_limit(tracking_key))
         mark_runnable(tracking_key, !restricted)
         return restricted
       end
@@ -238,7 +246,7 @@ module Resque
         count_key = running_count_key(tracking_key)
         value = Resque.redis.decr(count_key)
         Resque.redis.set(count_key, 0) if value < 0
-        restricted = (value >= concurrent_limit)
+        restricted = (value >= concurrent_limit(tracking_key))
         mark_runnable(tracking_key, !restricted)
         return restricted
       end

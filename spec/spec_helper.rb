@@ -108,10 +108,26 @@ class NoRestrictionJob
   @queue = 'normal'
 end
 
+class DefaultConcurrentRestrictionJob
+  extend RunCountHelper
+  extend Resque::Plugins::ConcurrentRestriction
+
+  @queue = 'normal'
+end
+
 class RestrictionJob
   extend RunCountHelper
   extend Resque::Plugins::ConcurrentRestriction
   concurrent 1
+  @queue = 'normal'
+end
+
+class DynamicRestrictionJob
+  extend RunCountHelper
+  extend Resque::Plugins::ConcurrentRestriction
+
+  concurrent Proc.new { |concurrent_id| concurrent_id == 'arg_type_one' ? 6 : 4 }
+
   @queue = 'normal'
 end
 
